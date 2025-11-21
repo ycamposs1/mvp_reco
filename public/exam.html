@@ -1,0 +1,285 @@
+<!-- public/exam.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Examen con verificación facial</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+    #video, #snapshot { max-width: 100%; border: 1px solid #ccc; }
+    .hidden { display: none; }
+    .status { margin: 10px 0; padding: 8px; border-radius: 4px; }
+    .status.ok { background: #d7ffd7; }
+    .status.error { background: #ffd7d7; }
+    .status.info { background: #d7e7ff; }
+  </style>
+</head>
+<body>
+  <h1>Examen</h1>
+
+  <!-- Paso 1: ingresar código de clase -->
+  <div id="code-section">
+    <h2>Ingresa el código de la clase</h2>
+    <input id="classCodeInput" placeholder="Ej: 483921" />
+    <button id="btnValidateCode">Validar código</button>
+    <div id="codeStatus" class="status info">
+      Esperando código de la clase.
+    </div>
+  </div>
+
+  <!-- Paso 2: verificación facial -->
+  <div id="login-section" class="hidden">
+    <h2>Verificación de identidad</h2>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" class="hidden"></canvas>
+    <button id="btnCapture">Tomar foto y verificar</button>
+    <div id="loginStatus" class="status info">Debes permitir acceso a la cámara.</div>
+  </div>
+
+  <!-- Paso 3: examen -->
+    <!-- dentro del exam-section, reemplaza el form sencillo por esto: -->
+    <div id="exam-section" class="hidden">
+    <h2>Bienvenido, <span id="studentName"></span></h2>
+    <p>Examen: <span id="examTitleSpan"></span></p>
+
+    <form id="examForm">
+        <div id="questionsContainer"></div>
+        <br/>
+        <button type="submit">Enviar examen</button>
+    </form>
+
+    <h3>Verificación de asistencia</h3>
+    <div id="attendanceStatus" class="status info">
+        Esperando que el docente solicite verificación...
+    </div>
+    </div>
+
+  
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const btnCapture = document.getElementById('btnCapture');
+  const loginStatus = document.getElementById('loginStatus');
+  const examSection = document.getElementById('exam-section');
+  const loginSection = document.getElementById('login-section');
+  const studentNameSpan = document.getElementById('studentName');
+  const attendanceStatus = document.getElementById('attendanceStatus');
+
+  const codeSection = document.getElementById('code-section');
+  const classCodeInput = document.getElementById('classCodeInput');
+  const btnValidateCode = document.getElementById('btnValidateCode');
+  const codeStatus = document.getElementById('codeStatus');
+
+  const examTitleSpan = document.getElementById('examTitleSpan');
+  const questionsContainer = document.getElementById('questionsContainer');
+  const examForm = document.getElementById('examForm');
+
+  let classId = null;
+  let examId = null;
+  let examAttemptId = null;
+  let currentQuestions = [];
+
+  async function initCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      loginStatus.textContent = 'Cámara lista. Toma una foto para verificar tu identidad.';
+    } catch (err) {
+      console.error(err);
+      loginStatus.textContent = 'No se pudo acceder a la cámara.';
+      loginStatus.className = 'status error';
+    }
+  }
+
+  function captureImageBase64() {
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    const base64 = dataUrl.split(',')[1];
+    return base64;
+  }
+
+  function renderQuestions(questions) {
+    questionsContainer.innerHTML = '';
+    questions.forEach((q, index) => {
+      const div = document.createElement('div');
+      div.style.marginBottom = '15px';
+
+      const title = document.createElement('h4');
+      title.textContent = `${index + 1}. ${q.text}`;
+      div.appendChild(title);
+
+      q.options.forEach(opt => {
+        const label = document.createElement('label');
+        label.style.display = 'block';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = `question_${q.id}`;
+        radio.value = opt.id;
+
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(' ' + opt.text));
+        div.appendChild(label);
+      });
+
+      questionsContainer.appendChild(div);
+    });
+  }
+
+  btnValidateCode.addEventListener('click', async () => {
+    const code = classCodeInput.value.trim();
+    if (!code) {
+      codeStatus.textContent = 'Ingresa un código.';
+      codeStatus.className = 'status error';
+      return;
+    }
+    codeStatus.textContent = 'Validando código...';
+    codeStatus.className = 'status info';
+    try {
+      const resp = await fetch(`/api/exam-sessions/by-code/${code}`);
+      const data = await resp.json();
+      if (!data.exists) {
+        codeStatus.textContent = data.error || 'Código no válido o examen no encontrado.';
+        codeStatus.className = 'status error';
+        return;
+      }
+      classId = data.classId;
+      examId = data.exam.id;
+      currentQuestions = data.exam.questions;
+
+      codeStatus.textContent =
+        `Clase: ${data.className} | Examen: ${data.exam.title}`;
+      codeStatus.className = 'status ok';
+
+      // Renderizar preguntas (pero aún no mostramos examen hasta cara verificada)
+      renderQuestions(currentQuestions);
+      examTitleSpan.textContent = data.exam.title;
+
+      // Mostrar sección de verificación facial
+      codeSection.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+      initCamera();
+      pollAttendanceCheck(); // comenzar a escuchar verificaciones
+    } catch (err) {
+      console.error(err);
+      codeStatus.textContent = 'Error de red al validar código.';
+      codeStatus.className = 'status error';
+    }
+  });
+
+  btnCapture.addEventListener('click', async () => {
+    if (!classId) {
+      loginStatus.textContent = 'No hay clase asociada. Primero valida un código.';
+      loginStatus.className = 'status error';
+      return;
+    }
+
+    loginStatus.textContent = 'Verificando rostro...';
+    loginStatus.className = 'status info';
+
+    const imageBase64 = captureImageBase64();
+    try {
+      const resp = await fetch('/api/face-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, classId })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        loginStatus.textContent = data.error || 'No se pudo verificar.';
+        loginStatus.className = 'status error';
+        return;
+      }
+
+      examAttemptId = data.examAttemptId;
+      studentNameSpan.textContent = data.studentName;
+      loginStatus.textContent = `Verificación ${data.status} (score: ${data.similarity.toFixed(3)})`;
+      loginStatus.className = 'status ok';
+
+      loginSection.classList.add('hidden');
+      examSection.classList.remove('hidden');
+
+    } catch (err) {
+      console.error(err);
+      loginStatus.textContent = 'Error en la comunicación con el servidor.';
+      loginStatus.className = 'status error';
+    }
+  });
+
+  examForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!examAttemptId || !examId) {
+      alert('No hay intento de examen o examId, algo salió mal.');
+      return;
+    }
+
+    const answers = currentQuestions.map(q => {
+      const selected = document.querySelector(`input[name="question_${q.id}"]:checked`);
+      return {
+        questionId: q.id,
+        optionId: selected ? Number(selected.value) : null
+      };
+    });
+
+    try {
+      const resp = await fetch(`/api/exam-sessions/${examId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examAttemptId, answers })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        alert(data.error || 'Error al guardar el examen.');
+        return;
+      }
+      alert('Examen enviado correctamente (MVP).');
+    } catch (err) {
+      console.error(err);
+      alert('Error de red al enviar el examen.');
+    }
+  });
+
+  async function pollAttendanceCheck() {
+    if (!classId) {
+      setTimeout(pollAttendanceCheck, 5000);
+      return;
+    }
+    try {
+      const resp = await fetch(`/api/classes/${classId}/attendance-checks/active`);
+      const data = await resp.json();
+      if (data.hasActive) {
+        attendanceStatus.textContent = 'El docente solicitó verificación. Tomando foto...';
+        attendanceStatus.className = 'status info';
+
+        const imageBase64 = captureImageBase64();
+        const resp2 = await fetch(`/api/attendance-checks/${data.checkId}/respond`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64, classId })
+        });
+        const data2 = await resp2.json();
+        if (!resp2.ok || !data2.success) {
+          attendanceStatus.textContent = data2.error || 'Error en verificación de asistencia.';
+          attendanceStatus.className = 'status error';
+        } else {
+          attendanceStatus.textContent =
+            `Asistencia registrada: ${data2.status} (score: ${data2.similarity.toFixed(3)})`;
+          attendanceStatus.className = 'status ok';
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(pollAttendanceCheck, 5000);
+    }
+  }
+</script>
+
+</body>
+</html>

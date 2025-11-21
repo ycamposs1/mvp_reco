@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panel docente</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; }
+    .status { margin: 10px 0; padding: 8px; border-radius: 4px; }
+    .status.ok { background: #d7ffd7; }
+    .status.error { background: #ffd7d7; }
+    pre, textarea { width: 100%; }
+    textarea { height: 200px; }
+  </style>
+</head>
+<body>
+  <h1>Panel docente</h1>
+
+  <h2>1. Crear examen y generar código</h2>
+  <label>Nombre de la clase:
+    <input id="className" placeholder="Ej: IA - Sesión 1" style="width: 100%;" />
+  </label>
+  <br/><br/>
+  <label>Título del examen:
+    <input id="examTitle" placeholder="Parcial 1" style="width: 100%;" />
+  </label>
+  <br/><br/>
+  <label>Preguntas (formato JSON sencillo):</label>
+  <textarea id="questionsJson"></textarea>
+  <small>
+    Ejemplo:
+    <pre>[
+  {
+    "text": "¿Capital de Perú?",
+    "options": [
+      { "text": "Lima", "correct": true },
+      { "text": "Cusco", "correct": false },
+      { "text": "Arequipa", "correct": false }
+    ]
+  },
+  {
+    "text": "2 + 2 = ?",
+    "options": [
+      { "text": "3", "correct": false },
+      { "text": "4", "correct": true }
+    ]
+  }
+]</pre>
+  </small>
+  <button id="btnGenerateCode">Crear examen y generar código</button>
+  <div id="codeInfo" class="status"></div>
+
+  <h2>2. Verificación de asistencia</h2>
+  <label>Nombre docente:
+    <input id="teacherName" value="Docente Demo" />
+  </label>
+  <button id="btnCheck">Verificar asistencia ahora</button>
+  <div id="checkStatus" class="status"></div>
+
+  <h2>3. Reporte de la clase</h2>
+  <button id="btnReport">Obtener reporte</button>
+  <pre id="reportOutput"></pre>
+
+  <script>
+    const classNameInput = document.getElementById('className');
+    const examTitleInput = document.getElementById('examTitle');
+    const questionsJsonInput = document.getElementById('questionsJson');
+    const codeInfo = document.getElementById('codeInfo');
+    const teacherNameInput = document.getElementById('teacherName');
+    const checkStatus = document.getElementById('checkStatus');
+    const reportOutput = document.getElementById('reportOutput');
+
+    let currentClassId = null;
+    let currentCode = null;
+
+    document.getElementById('btnGenerateCode').addEventListener('click', async () => {
+      const name = classNameInput.value.trim();
+      const examTitle = examTitleInput.value.trim();
+      const questionsJson = questionsJsonInput.value.trim();
+
+      if (!examTitle || !questionsJson) {
+        codeInfo.textContent = 'Debes ingresar título del examen y preguntas en JSON.';
+        codeInfo.className = 'status error';
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/exams/create-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, examTitle, questionsJson })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          codeInfo.textContent = data.error || 'Error generando examen y código.';
+          codeInfo.className = 'status error';
+          return;
+        }
+        currentClassId = data.classId;
+        currentCode = data.code;
+
+        codeInfo.textContent =
+          `Examen creado: "${data.examTitle}" en la clase "${data.className}". ` +
+          `Código para los alumnos: ${data.code} (ID interno clase: ${data.classId})`;
+        codeInfo.className = 'status ok';
+      } catch (err) {
+        console.error(err);
+        codeInfo.textContent = 'Error de red.';
+        codeInfo.className = 'status error';
+      }
+    });
+
+    document.getElementById('btnCheck').addEventListener('click', async () => {
+      if (!currentClassId) {
+        checkStatus.textContent = 'Primero genera un examen y código.';
+        checkStatus.className = 'status error';
+        return;
+      }
+      const teacherName = teacherNameInput.value || 'docente';
+      try {
+        const resp = await fetch(`/api/classes/${currentClassId}/attendance-checks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacherName })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          checkStatus.textContent = data.error || 'Error creando verificación.';
+          checkStatus.className = 'status error';
+          return;
+        }
+        checkStatus.textContent =
+          `Verificación creada. ID: ${data.check.id}, expira en ${data.check.expires_at}`;
+        checkStatus.className = 'status ok';
+      } catch (err) {
+        console.error(err);
+        checkStatus.textContent = 'Error de red.';
+        checkStatus.className = 'status error';
+      }
+    });
+
+    document.getElementById('btnReport').addEventListener('click', async () => {
+      if (!currentClassId) {
+        reportOutput.textContent = 'Primero genera un examen y código.';
+        return;
+      }
+      try {
+        const resp = await fetch(`/api/classes/${currentClassId}/report`);
+        const data = await resp.json();
+        if (!resp.ok) {
+          reportOutput.textContent = data.error || 'Error obteniendo reporte.';
+          return;
+        }
+        reportOutput.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        console.error(err);
+        reportOutput.textContent = 'Error de red.';
+      }
+    });
+  </script>
+</body>
+</html>
