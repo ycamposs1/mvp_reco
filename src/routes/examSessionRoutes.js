@@ -70,9 +70,13 @@ router.post('/exams/create-session', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error creando sesión de examen.' });
-  }
+  console.error('Error creando sesión de examen:', err);
+  res.status(500).json({
+    error: 'Error creando sesión de examen.',
+    details: err.message || String(err)
+  });
+}
+
 });
 
 /**
