@@ -1,8 +1,10 @@
 #archivos sensible
 .env
-#data-base
-*.sql
-*.sqlite
-dv/schema.sql
 node_modules/
-face_exam.db
+
+#data-base
+# *.sql
+# *.sqlite
+
+# dv/schema.sql
+# face_exam.db
