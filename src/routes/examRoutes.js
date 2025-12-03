@@ -105,10 +105,12 @@ router.post('/face-login', async (req, res) => {
       console.error('Response data:', err.response.data);
       console.error('Response status:', err.response.status);
     }
-    res.status(500).json({ error: 'Error interno en el login facial.' });
 
-
-    //res.status(500).json({ error: 'Error interno en la verificación facial.' });
+    res.status(500).json({
+      error: 'Error interno en el login facial.',
+      details: err.message,
+      compreface: err.response?.data || null
+    });
   }
 });
 
