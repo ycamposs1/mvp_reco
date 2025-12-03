@@ -26,14 +26,9 @@ app.use('/api', examRoutes);
 app.use('/api', attendanceRoutes);
 app.use('/api', classRoutes);
 
-// Rutas front:
-// ahora sin :classId en la URL, trabajaremos por código/clase en el front.
-app.get('/exam', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'exam.html'));
-});
-
-app.get('/teacher', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'teacher.html'));
+// Ruta.
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 app.listen(port, () => {
@@ -44,4 +39,11 @@ app.use('/api', examRoutes);
 app.use('/api', attendanceRoutes);
 app.use('/api', classRoutes);        
 app.use('/api', examSessionRoutes);  
+
+const PORT = process.env.PORT || port || 3000;
+
+// MUY IMPORTANTE: escuchar en 0.0.0.0
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 

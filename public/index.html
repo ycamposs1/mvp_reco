@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sistema de Exámenes con Reconocimiento Facial</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+    p {
+      margin-bottom: 1.5rem;
+      color: #9ca3af;
+      text-align: center;
+      max-width: 400px;
+    }
+    .buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    a {
+      text-decoration: none;
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 1rem;
+      background: #2563eb;
+      color: white;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .btn-secondary {
+      background: #111827;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+      border: 1px solid #374151;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 15px 30px rgba(37, 99, 235, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <h1>Exámenes con Verificación Facial</h1>
+  <p>
+    Selecciona tu rol para continuar. El sistema integra reconocimiento facial con CompreFace
+    para verificar la identidad de los estudiantes durante el examen.
+  </p>
+
+  <div class="buttons">
+    <!-- Suponiendo que tus páginas son exam.html y teacher.html -->
+    <a href="/exam.html">
+      <button class="btn">Soy Estudiante</button>
+    </a>
+    <a href="/teacher.html">
+      <button class="btn btn-secondary">Soy Docente</button>
+    </a>
+  </div>
+</body>
+</html>
