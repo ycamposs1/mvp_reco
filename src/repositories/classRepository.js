@@ -36,11 +36,14 @@ async function enrollStudent({ classId, studentId }) {
   try {
     const result = await run(
       `
-      INSERT INTO enrollments (class_id, student_id)
+      INSERT OR IGNORE INTO enrollments (class_id, student_id)
       VALUES (?, ?)
       `,
       [classId, studentId]
     );
+    // Si no se insertó (porque ya existía), lastID podría no ser útil, pero evitamos el error.
+    // Para devolver algo consistente, podríamos buscarlo si lastID es 0/undefined,
+    // pero para este caso basta con no lanzar error.
     return { id: result.lastID, class_id: classId, student_id: studentId };
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE')) {

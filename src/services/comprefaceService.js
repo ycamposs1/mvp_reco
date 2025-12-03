@@ -40,6 +40,12 @@ async function recognizeFaceFromBase64(imageBase64) {
       raw: data
     };
   } catch (err) {
+    // Si CompreFace devuelve 400 con code 28 ("No face is found"), lo manejamos como null
+    if (err.response && err.response.status === 400 && err.response.data?.code === 28) {
+      console.warn('CompreFace: No face found in image.');
+      return null;
+    }
+
     console.error('Error llamando a CompreFace:', err.response?.data || err.message);
     throw err;
   }

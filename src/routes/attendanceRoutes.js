@@ -117,7 +117,8 @@ router.post('/attendance-checks/:checkId/respond', async (req, res) => {
 router.get('/classes/:classId/report', async (req, res) => {
   try {
     const { classId } = req.params;
-    const rows = await attendanceRepo.getClassReport(classId);
+    const { examId } = req.query;
+    const rows = await attendanceRepo.getClassReport(classId, examId);
     res.json({ classId, data: rows });
   } catch (err) {
     console.error(err);

@@ -208,6 +208,7 @@
     const btnAddQuestion = document.getElementById('btnAddQuestion');
 
     let currentClassId = null;
+    let currentExamId = null;
     let currentCode = null;
 
     // ---------------------------
@@ -414,6 +415,7 @@
         }
 
         currentClassId = data.classId;
+        currentExamId = data.examId;
         currentCode = data.code;
 
         codeInfo.textContent =
@@ -479,7 +481,10 @@
         return;
       }
       try {
-        const resp = await fetch(`/api/classes/${currentClassId}/report`);
+        const url = currentExamId
+          ? `/api/classes/${currentClassId}/report?examId=${currentExamId}`
+          : `/api/classes/${currentClassId}/report`;
+        const resp = await fetch(url);
         const data = await resp.json();
         if (!resp.ok) {
           reportOutput.textContent = data.error || 'Error obteniendo reporte.';
@@ -536,13 +541,14 @@
           student.events.sort((a, b) => new Date(a.time) - new Date(b.time));
 
           html += `
-          <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-900/50 p-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+          <details class="group rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden mb-2">
+            <summary class="bg-slate-50 dark:bg-slate-900/50 p-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center cursor-pointer list-none">
               <div>
-                <p class="text-sm font-bold text-[#0d141b] dark:text-white">${student.fullName}</p>
+                <p class="text-sm font-bold text-[#0d141b] dark:text-white group-open:text-primary transition-colors">${student.fullName}</p>
                 <p class="text-xs text-[#4c739a] dark:text-slate-400">${student.className}</p>
               </div>
-            </div>
+              <span class="material-symbols-outlined text-slate-400 group-open:rotate-180 transition-transform">expand_more</span>
+            </summary>
             <div class="p-0">
               <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50 dark:bg-slate-800/50 text-[#4c739a] dark:text-slate-400 font-medium border-b border-slate-100 dark:border-slate-700">
@@ -566,7 +572,10 @@
 
               if (ev.type === 'EXAM_START') {
                 eventName = 'Inicio Examen';
-                statusColor = ev.status === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400';
+                if (ev.status === 'ok') statusColor = 'text-emerald-600 dark:text-emerald-400';
+                else if (ev.status === 'bloqueado') statusColor = 'text-red-600 dark:text-red-400 font-bold';
+                else statusColor = 'text-amber-600 dark:text-amber-400';
+
                 detail = `Score Verif: ${(ev.score * 100).toFixed(1)}%`;
               } else if (ev.type === 'ATTENDANCE_CHECK') {
                 eventName = 'Verificación Asistencia';
@@ -574,7 +583,10 @@
                   statusColor = 'text-red-500';
                   ev.status = 'No respondió';
                 } else {
-                  statusColor = ev.status === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400';
+                  if (ev.status === 'ok') statusColor = 'text-emerald-600 dark:text-emerald-400';
+                  else if (ev.status === 'bloqueado') statusColor = 'text-red-600 dark:text-red-400 font-bold';
+                  else statusColor = 'text-amber-600 dark:text-amber-400';
+
                   detail = `Score: ${(ev.score * 100).toFixed(1)}%`;
                 }
               }
@@ -594,7 +606,7 @@
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
         `;
         });
 

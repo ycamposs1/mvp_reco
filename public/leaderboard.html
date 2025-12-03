@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Leaderboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white min-h-screen p-6">
+    <div class="max-w-3xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary mb-2">Resultados del Examen</h1>
+            <p class="text-slate-500 dark:text-slate-400">Ranking en tiempo real</p>
+        </header>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+            <table class="w-full text-left">
+                <thead
+                    class="bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase text-xs font-semibold">
+                    <tr>
+                        <th class="px-6 py-4">#</th>
+                        <th class="px-6 py-4">Estudiante</th>
+                        <th class="px-6 py-4 text-right">Puntaje</th>
+                        <th class="px-6 py-4 text-right">Tiempo</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody" class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-slate-500">Cargando resultados...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="/exam.html" class="text-blue-500 hover:underline text-sm">Volver al inicio</a>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('examId');
+
+        async function loadLeaderboard() {
+            if (!examId) {
+                document.getElementById('leaderboardBody').innerHTML =
+                    '<tr><td colspan="4" class="px-6 py-8 text-center text-red-500">No se especificó un ID de examen.</td></tr>';
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/exams/${examId}/leaderboard`);
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    throw new Error(data.error || 'Error al cargar leaderboard');
+                }
+
+                const tbody = document.getElementById('leaderboardBody');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">Aún no hay resultados.</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                data.forEach((row, index) => {
+                    const rank = index + 1;
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+                    const score = row.exam_score !== null ? row.exam_score : '-';
+                    const time = new Date(row.started_at).toLocaleTimeString();
+
+                    html += `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+              <td class="px-6 py-4 font-bold text-lg">${medal}</td>
+              <td class="px-6 py-4 font-medium">${row.full_name}</td>
+              <td class="px-6 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">${score} pts</td>
+              <td class="px-6 py-4 text-right text-slate-400 text-sm">${time}</td>
+            </tr>
+          `;
+                });
+                tbody.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Cargar al inicio y cada 10s
+        loadLeaderboard();
+        setInterval(loadLeaderboard, 10000);
+    </script>
+</body>
+
+</html>

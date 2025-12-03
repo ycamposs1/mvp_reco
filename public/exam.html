@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
@@ -15,15 +16,15 @@
       theme: {
         extend: {
           colors: {
-            primary: "#3b82f6", 
-            "background-light": "#f8fafc", 
-            "background-dark": "#0f172a", 
+            primary: "#3b82f6",
+            "background-light": "#f8fafc",
+            "background-dark": "#0f172a",
           },
           fontFamily: {
             display: ["Inter", "sans-serif"],
           },
           borderRadius: {
-            DEFAULT: "0.5rem", 
+            DEFAULT: "0.5rem",
           },
         },
       },
@@ -36,6 +37,7 @@
     }
   </style>
 </head>
+
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
   <div class="flex items-center justify-center min-h-screen">
     <div class="w-full max-w-4xl p-4 sm:p-8">
@@ -56,7 +58,7 @@
               Ingresa el código de la clase
             </h2>
             <p class="text-sm text-gray-600 dark:text-gray-400">
-              El docente te proporcionará un código tipo Kahoot.
+              El docente te proporcionará un código.
             </p>
           </div>
 
@@ -69,27 +71,18 @@
                     class="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                     numbers
                   </span>
-                  <input
-                    id="classCodeInput"
-                    name="class-code"
-                    type="text"
-                    required
-                    placeholder="Ej: 483921"
-                    class="w-full pl-10 pr-4 py-3 rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
+                  <input id="classCodeInput" name="class-code" type="text" required placeholder="Ej: 483921"
+                    class="w-full pl-10 pr-4 py-3 rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
                 </div>
               </div>
               <div>
-                <button
-                  id="btnValidateCode"
-                  type="button"
+                <button id="btnValidateCode" type="button"
                   class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-background-dark transition-colors duration-200">
                   Validar código
                 </button>
               </div>
             </form>
-            <div
-              id="codeStatus"
+            <div id="codeStatus"
               class="bg-blue-100 dark:bg-blue-900/40 border-l-4 border-blue-500 text-blue-800 dark:text-blue-200 p-4 rounded-r-lg text-sm"
               role="alert">
               Esperando código de la clase.
@@ -107,21 +100,19 @@
               <p class="text-sm text-gray-600 dark:text-gray-400">
                 Permite el acceso a la cámara, colócate centrado y toma una foto para validar tu identidad.
               </p>
-              <div
-                id="loginStatus"
+              <div id="loginStatus"
                 class="text-sm bg-blue-50 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
                 Debes permitir acceso a la cámara.
               </div>
-              <button
-                id="btnCapture"
-                type="button"
+              <button id="btnCapture" type="button"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-background-dark">
                 <span class="material-icons-outlined text-base">photo_camera</span>
                 Tomar foto y verificar
               </button>
             </div>
             <div class="flex-1">
-              <div class="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+              <div
+                class="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                 <video id="video" autoplay playsinline class="w-full aspect-video bg-black/80"></video>
                 <canvas id="canvas" class="hidden"></canvas>
               </div>
@@ -146,8 +137,7 @@
             <div id="questionsContainer" class="space-y-4">
               <!-- Preguntas dinámicas -->
             </div>
-            <button
-              type="submit"
+            <button type="submit"
               class="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-background-dark">
               Enviar examen
             </button>
@@ -157,8 +147,7 @@
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">
               Verificación de asistencia en vivo
             </h3>
-            <div
-              id="attendanceStatus"
+            <div id="attendanceStatus"
               class="text-sm bg-blue-50 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
               Esperando que el docente solicite verificación...
             </div>
@@ -316,10 +305,14 @@
         const resp = await fetch('/api/face-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64, classId }),
+          body: JSON.stringify({ imageBase64, classId, examId }), // Pasamos examId
         });
         const data = await resp.json();
         if (!resp.ok || !data.success) {
+          // Si el error es por bloqueo (401), mostramos alerta específica
+          if (resp.status === 401 && data.status === 'bloqueado') {
+            alert(`ACCESO DENEGADO: Similitud muy baja (${data.similarity.toFixed(3)}). Intento registrado como bloqueado.`);
+          }
           loginStatus.textContent = data.error || 'No se pudo verificar.';
           loginStatus.className =
             'text-sm bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2';
@@ -369,7 +362,10 @@
           alert(data.error || 'Error al guardar el examen.');
           return;
         }
-        alert('Examen enviado correctamente (MVP).');
+
+        // Redirigir al leaderboard
+        window.location.href = `/leaderboard.html?examId=${examId}`;
+
       } catch (err) {
         console.error(err);
         alert('Error de red al enviar el examen.');
@@ -416,4 +412,5 @@
     }
   </script>
 </body>
+
 </html>

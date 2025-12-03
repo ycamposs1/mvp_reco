@@ -27,7 +27,7 @@ function generateClassCode() {
  */
 router.post('/exams/create-session', async (req, res) => {
   try {
-    const { name, examTitle, questionsJson } = req.body;
+    const { name, examTitle, questionsJson, durationMinutes } = req.body;
 
     if (!examTitle || !questionsJson) {
       return res.status(400).json({ error: 'examTitle y questionsJson son requeridos.' });
@@ -57,7 +57,8 @@ router.post('/exams/create-session', async (req, res) => {
     const exam = await examRepo.createExamWithQuestions({
       classId: classData.id,
       title: examTitle,
-      questions
+      questions,
+      durationMinutes: durationMinutes ? parseInt(durationMinutes) : 60
     });
 
     res.json({
@@ -66,16 +67,17 @@ router.post('/exams/create-session', async (req, res) => {
       className: classData.name,
       code,
       examId: exam.id,
-      examTitle: exam.title
+      examTitle: exam.title,
+      durationMinutes: exam.durationMinutes
     });
 
   } catch (err) {
-  console.error('Error creando sesión de examen:', err);
-  res.status(500).json({
-    error: 'Error creando sesión de examen.',
-    details: err.message || String(err)
-  });
-}
+    console.error('Error creando sesión de examen:', err);
+    res.status(500).json({
+      error: 'Error creando sesión de examen.',
+      details: err.message || String(err)
+    });
+  }
 
 });
 

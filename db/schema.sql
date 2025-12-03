@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
 CREATE TABLE IF NOT EXISTS exam_attempts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   class_id INTEGER NOT NULL,
+  exam_id INTEGER,
   student_id INTEGER NOT NULL,
   started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   face_verified_at DATETIME,
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS exam_attempts (
   client_ip TEXT,
   user_agent TEXT,
   FOREIGN KEY (class_id) REFERENCES classes(id),
+  FOREIGN KEY (exam_id) REFERENCES exams(id),
   FOREIGN KEY (student_id) REFERENCES students(id)
 );
 

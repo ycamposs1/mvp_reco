@@ -39,7 +39,7 @@ router.post('/exams', createExam);
  */
 router.post('/face-login', async (req, res) => {
   try {
-    const { imageBase64, classId } = req.body;
+    const { imageBase64, classId, examId } = req.body;
     if (!imageBase64 || !classId) {
       return res.status(400).json({ error: 'imageBase64 y classId son requeridos.' });
     }
@@ -57,7 +57,14 @@ router.post('/face-login', async (req, res) => {
     }
 
     const { subject, similarity } = recognition;
-    const status = similarity >= 0.8 ? 'ok' : similarity >= 0.6 ? 'dudoso' : 'fallido';
+
+    // Lógica de estado
+    let status = 'ok';
+    if (similarity < 0.6) {
+      status = 'bloqueado';
+    } else if (similarity < 0.8) {
+      status = 'dudoso';
+    }
 
     // 3. Buscar alumno por subject, si no existe lo creamos
     let student = await studentRepo.findByComprefaceSubject(subject);
@@ -70,6 +77,7 @@ router.post('/face-login', async (req, res) => {
     }
 
     // 4. Matricularlo en la clase si aún no lo está
+    // (Incluso si está bloqueado, lo matriculamos para que salga en el reporte)
     await classRepo.enrollStudent({
       classId,
       studentId: student.id
@@ -81,12 +89,23 @@ router.post('/face-login', async (req, res) => {
 
     const attempt = await attendanceRepo.createExamAttempt({
       classId,
+      examId, // Nuevo campo
       studentId: student.id,
       score: similarity,
       status,
       clientIp,
       userAgent
     });
+
+    // Si está bloqueado, devolvemos error 401 PERO después de haber registrado todo
+    if (status === 'bloqueado') {
+      return res.status(401).json({
+        error: 'Similitud baja. Acceso denegado.',
+        similarity,
+        status,
+        studentName: student.full_name
+      });
+    }
 
     res.json({
       success: true,
