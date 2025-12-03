@@ -27,11 +27,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// API agrupada
-app.use('/api/exams', examRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/class', classRoutes);
-app.use('/api/exam-session', examSessionRoutes);
+// API agrupada (verificar luego)
+app.use('/api', examRoutes);
+app.use('/api', attendanceRoutes);
+app.use('/api', classRoutes);
+app.use('/api', examSessionRoutes);
 
 // Render / Producción usa process.env.PORT siempre
 const PORT = process.env.PORT || port || 3000;
