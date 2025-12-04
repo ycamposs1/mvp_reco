@@ -46,6 +46,13 @@ async function recognizeFaceFromBase64(imageBase64) {
       return null;
     }
 
+    // Manejar error 500 con code 41 (Error during synchronization... Unexpected end of file)
+    // Esto suele pasar cuando no detecta nada o la imagen es mala y el core falla.
+    if (err.response && err.response.status === 500 && err.response.data?.code === 41) {
+      console.warn('CompreFace: Sync error (code 41) - likely no face found or bad image.');
+      return null;
+    }
+
     console.error('Error llamando a CompreFace:', err.response?.data || err.message);
     throw err;
   }

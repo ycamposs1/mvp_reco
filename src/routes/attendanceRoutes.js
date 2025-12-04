@@ -113,12 +113,36 @@ router.post('/attendance-checks/:checkId/respond', async (req, res) => {
 
     // 2. Registrar respuesta
     await attendanceRepo.registerAttendanceResponse({
-      checkId, // Corregido: el repo espera checkId, no attendanceCheckId
+      checkId,
       studentId: student.id,
       score: similarity,
       status,
       capturedAt: new Date()
     });
+
+    // Validar identidad contra el intento de examen (si se proporcionó)
+    if (examAttemptId && recognition) {
+      const { get } = require('../db');
+      const attempt = await get('SELECT student_id FROM exam_attempts WHERE id = ?', [examAttemptId]);
+
+      if (attempt && attempt.student_id !== student.id) {
+        // ALERTA: La persona reconocida NO es la que inició el examen
+        status = 'bloqueado';
+        console.warn(`Identity mismatch! Exam started by student ${attempt.student_id}, but check recognized student ${student.id}. Blocking.`);
+
+        // Actualizar el registro recién creado a bloqueado si no lo estaba
+        // (Opcional, pero bueno para consistencia)
+      }
+    }
+
+    if (status === 'bloqueado') {
+      return res.json({
+        success: false,
+        status,
+        similarity,
+        error: 'Verificación fallida: Rostro no reconocido o no coincide con el estudiante.'
+      });
+    }
 
     res.json({ success: true, status, similarity });
 

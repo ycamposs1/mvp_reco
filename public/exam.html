@@ -177,10 +177,20 @@
     const questionsContainer = document.getElementById('questionsContainer');
     const examForm = document.getElementById('examForm');
 
+    // Elemento del timer (creado dinámicamente o agregado al HTML)
+    let timerElement = null;
+
     let classId = null;
     let examId = null;
     let examAttemptId = null;
     let currentQuestions = [];
+
+    // Variables para el timer
+    let examDurationMinutes = 60;
+    let examStartedAt = null;
+    let timerInterval = null;
+    let notified5Min = false;
+    let notified1Min = false;
 
     async function initCamera() {
       try {
@@ -272,6 +282,11 @@
         examId = data.exam.id;
         currentQuestions = data.exam.questions || [];
 
+        // Guardamos duración (aunque luego el login nos la confirma)
+        if (data.exam.durationMinutes) {
+          examDurationMinutes = data.exam.durationMinutes;
+        }
+
         renderQuestions(currentQuestions);
         examTitleSpan.textContent = data.exam.title;
         setCodeStatus(`Clase: ${data.className} | Examen: ${data.exam.title}`, 'ok');
@@ -321,6 +336,19 @@
 
         examAttemptId = data.examAttemptId;
         studentNameSpan.textContent = data.studentName;
+
+        // Configurar timer
+        if (data.startedAt) {
+          examStartedAt = new Date(data.startedAt);
+        } else {
+          examStartedAt = new Date(); // Fallback
+        }
+        if (data.durationMinutes) {
+          examDurationMinutes = data.durationMinutes;
+        }
+
+        startTimer();
+
         loginStatus.textContent = `Verificación ${data.status} (score: ${data.similarity.toFixed(3)})`;
         loginStatus.className =
           'text-sm bg-green-50 dark:bg-green-900/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2';
@@ -335,11 +363,87 @@
       }
     });
 
-    // Enviar examen
-    examForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    // --- Lógica del Timer ---
+    function startTimer() {
+      // Crear elemento visual para el timer si no existe
+      if (!document.getElementById('examTimer')) {
+        const headerDiv = document.querySelector('#exam-section > div');
+        timerElement = document.createElement('div');
+        timerElement.id = 'examTimer';
+        timerElement.className = 'text-xl font-bold text-primary bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg border border-blue-100 dark:border-blue-800 tabular-nums';
+        headerDiv.appendChild(timerElement);
+      } else {
+        timerElement = document.getElementById('examTimer');
+      }
+
+      updateTimer(); // Primera ejecución inmediata
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      if (!examStartedAt) return;
+
+      const now = new Date();
+      const endTime = new Date(examStartedAt.getTime() + examDurationMinutes * 60000);
+      const diff = endTime - now;
+
+      if (diff <= 0) {
+        // Tiempo terminado
+        timerElement.textContent = "00:00";
+        timerElement.classList.add('text-red-600');
+        clearInterval(timerInterval);
+        alert('¡El tiempo ha terminado! El examen se enviará automáticamente.');
+        submitExam();
+        return;
+      }
+
+      // Formato MM:SS
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+
+      const minStr = minutes.toString().padStart(2, '0');
+      const secStr = seconds.toString().padStart(2, '0');
+
+      timerElement.textContent = `${minStr}:${secStr}`;
+
+      // Notificaciones
+      // 5 minutos (300000 ms) - margen de 1 seg para no repetir
+      if (diff <= 300000 && diff > 299000 && !notified5Min) {
+        notified5Min = true;
+        showNotification('Quedan 5 minutos para finalizar el examen.', 'warning');
+      }
+
+      // 1 minuto (60000 ms)
+      if (diff <= 60000 && diff > 59000 && !notified1Min) {
+        notified1Min = true;
+        timerElement.classList.add('text-red-500', 'animate-pulse');
+        showNotification('¡Atención! Queda 1 minuto.', 'critical');
+      }
+    }
+
+    function showNotification(msg, type) {
+      // Simple alert o toast custom. Usaremos un div flotante.
+      const notif = document.createElement('div');
+      notif.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-xl text-white font-medium transform transition-all duration-500 translate-y-[-100%] ${type === 'critical' ? 'bg-red-600' : 'bg-amber-500'
+        }`;
+      notif.textContent = msg;
+      document.body.appendChild(notif);
+
+      // Animar entrada
+      requestAnimationFrame(() => {
+        notif.classList.remove('translate-y-[-100%]');
+      });
+
+      // Auto eliminar
+      setTimeout(() => {
+        notif.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => notif.remove(), 500);
+      }, 5000);
+    }
+
+    async function submitExam() {
       if (!examAttemptId || !examId) {
-        alert('No hay intento de examen o examId, algo salió mal.');
+        // Si no hay intento, redirigir o recargar
         return;
       }
 
@@ -370,6 +474,12 @@
         console.error(err);
         alert('Error de red al enviar el examen.');
       }
+    }
+
+    // Enviar examen (manual)
+    examForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await submitExam();
     });
 
     // Polling de verificación de asistencia
@@ -397,6 +507,12 @@
             attendanceStatus.textContent = data2.error || 'Error en verificación de asistencia.';
             attendanceStatus.className =
               'text-sm bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2';
+
+            // BLOQUEO DE EXAMEN SI ES NECESARIO
+            if (data2.status === 'bloqueado') {
+              blockExamUI(data2.error || 'Verificación facial fallida.');
+            }
+
           } else {
             attendanceStatus.textContent =
               `Asistencia registrada: ${data2.status} (score: ${data2.similarity.toFixed(3)})`;
@@ -409,6 +525,28 @@
       } finally {
         setTimeout(pollAttendanceCheck, 5000);
       }
+    }
+
+    function blockExamUI(reason) {
+      // Crear overlay de bloqueo
+      const overlay = document.createElement('div');
+      overlay.className = 'fixed inset-0 z-[100] bg-red-900/90 backdrop-blur-sm flex items-center justify-center p-4';
+      overlay.innerHTML = `
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-md text-center shadow-2xl border-2 border-red-500">
+                <span class="material-icons-outlined text-6xl text-red-500 mb-4">gpp_bad</span>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Examen Bloqueado</h2>
+                <p class="text-gray-600 dark:text-gray-300 mb-6">${reason}</p>
+                <div class="text-sm text-red-400 font-medium">Contacta al docente para desbloquear.</div>
+            </div>
+        `;
+      document.body.appendChild(overlay);
+
+      // Detener timer
+      if (timerInterval) clearInterval(timerInterval);
+
+      // Deshabilitar formulario (aunque el overlay ya tapa todo)
+      const inputs = document.querySelectorAll('input, button');
+      inputs.forEach(i => i.disabled = true);
     }
   </script>
 </body>

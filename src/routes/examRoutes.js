@@ -100,11 +100,26 @@ router.post('/face-login', async (req, res) => {
     // Si está bloqueado, devolvemos error 401 PERO después de haber registrado todo
     if (status === 'bloqueado') {
       return res.status(401).json({
-        error: 'Similitud baja. Acceso denegado.',
+        error: 'Acceso denegado: Similitud facial insuficiente o rostro no reconocido.',
         similarity,
         status,
         studentName: student.full_name
       });
+    }
+
+    // Obtener duración del examen para devolverla (opcional, pero útil si el cliente la perdió)
+    let durationMinutes = 60;
+    if (examId) {
+      const exam = await examRepo.getExamWithQuestionsById(examId);
+      if (exam) {
+        durationMinutes = exam.durationMinutes;
+      }
+    }
+
+    // Corregir formato de fecha para que sea UTC (SQLite devuelve "YYYY-MM-DD HH:MM:SS")
+    let startedAtIso = attempt.started_at;
+    if (startedAtIso && !startedAtIso.includes('Z')) {
+      startedAtIso = startedAtIso.replace(' ', 'T') + 'Z';
     }
 
     res.json({
@@ -112,7 +127,9 @@ router.post('/face-login', async (req, res) => {
       studentName: student.full_name,
       similarity,
       status,
-      examAttemptId: attempt.id
+      examAttemptId: attempt.id,
+      startedAt: startedAtIso, // Importante para el timer
+      durationMinutes
     });
 
   } catch (err) {
